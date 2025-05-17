@@ -2,44 +2,78 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image as RNImage } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { gql, useQuery } from '@apollo/client';
 
 const ACCENT = '#FF7A00';
-const CATEGORIES = ['Appetizers', 'Mains', 'Drinks', 'Desserts'];
+
+// GraphQL query to fetch categories and their menu items
+const GET_CATEGORIES = gql`
+  query GetCategories {
+    categories {
+      id
+      name
+      description
+      imgUrl
+      menuItems {
+        id
+        name
+        description
+        price
+        imageUrl
+        isAvailable
+      }
+    }
+  }
+`;
 
 interface MenuItem {
   id: string;
   name: string;
   description: string;
   price: number;
-  image: string;
+  imageUrl: string;
+  isAvailable: boolean;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  description: string;
+  imgUrl: string;
+  menuItems: MenuItem[];
 }
 
 export default function MenuScreen({ navigation }: any) {
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
-  const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { loading, error, data } = useQuery(GET_CATEGORIES);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cartCount, setCartCount] = useState(0);
 
+  // Set initial selected category when data loads
   useEffect(() => {
-    const fetchMenu = async () => {
-      setLoading(true);
-      try {
-        // TODO: Replace with your backend endpoint
-        const res = await fetch(`http://YOUR_BACKEND_URL/menu?category=${selectedCategory}`);
-        const data = await res.json();
-        setMenu(data);
-      } catch (e) {
-        setMenu([]);
-      }
-      setLoading(false);
-    };
-    fetchMenu();
-  }, [selectedCategory]);
+    if (data?.categories?.length > 0 && !selectedCategory) {
+      setSelectedCategory(data.categories[0].name);
+    }
+  }, [data]);
 
   const handleAddToCart = (item: MenuItem) => {
     // TODO: Call backend to add to cart
     setCartCount(cartCount + 1);
   };
+
+  // Get menu items for selected category
+  const getMenuItems = () => {
+    if (!data?.categories || !selectedCategory) return [];
+    const category = data.categories.find(cat => cat.name === selectedCategory);
+    return category?.menuItems || [];
+  };
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Error loading menu: {error.message}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -62,24 +96,24 @@ export default function MenuScreen({ navigation }: any) {
 
       {/* Category Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsContainer}>
-        {CATEGORIES.map((cat) => (
+        {data?.categories?.map((cat: Category) => (
           <TouchableOpacity
-            key={cat}
-            style={[styles.tab, selectedCategory === cat && styles.tabActive]}
-            onPress={() => setSelectedCategory(cat)}
+            key={cat.id}
+            style={[styles.tab, selectedCategory === cat.name && styles.tabActive]}
+            onPress={() => setSelectedCategory(cat.name)}
           >
-            <Text style={[styles.tabText, selectedCategory === cat && styles.tabTextActive]}>{cat}</Text>
+            <Text style={[styles.tabText, selectedCategory === cat.name && styles.tabTextActive]}>{cat.name}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* Food List */}
       <FlatList
-        data={menu}
+        data={getMenuItems()}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.menuList}
         refreshing={loading}
-        onRefresh={() => setSelectedCategory(selectedCategory)}
+        onRefresh={() => {}} // Apollo Client handles refresh automatically
         ListEmptyComponent={
           loading ? (
             <Text style={styles.loadingText}>Loading...</Text>
@@ -89,14 +123,20 @@ export default function MenuScreen({ navigation }: any) {
         }
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <RNImage source={{ uri: item.image }} style={styles.cardImage} />
+            <RNImage source={{ uri: item.imageUrl }} style={styles.cardImage} />
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>{item.name}</Text>
               <Text style={styles.cardDesc}>{item.description}</Text>
               <View style={styles.cardFooter}>
                 <Text style={styles.cardPrice}>${item.price.toFixed(2)}</Text>
-                <TouchableOpacity style={styles.addButton} onPress={() => handleAddToCart(item)}>
-                  <Text style={styles.addButtonText}>Add to Cart</Text>
+                <TouchableOpacity 
+                  style={[styles.addButton, !item.isAvailable && styles.addButtonDisabled]} 
+                  onPress={() => handleAddToCart(item)}
+                  disabled={!item.isAvailable}
+                >
+                  <Text style={styles.addButtonText}>
+                    {item.isAvailable ? 'Add to Cart' : 'Not Available'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -242,5 +282,14 @@ const styles = StyleSheet.create({
     marginTop: 40,
     color: '#bbb',
     fontSize: 16,
+  },
+  errorText: {
+    textAlign: 'center',
+    marginTop: 40,
+    color: 'red',
+    fontSize: 16,
+  },
+  addButtonDisabled: {
+    backgroundColor: '#ccc',
   },
 }); 
