@@ -5,8 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@apollo/client';
 import { GET_CATEGORIES } from '../graphql/queries/menu';
 import { Category, MenuItem } from '../types/menu';
-import { CategoryTabs } from '../components/menu/CategoryTabs';
-import { MenuItemCard } from '../components/menu/MenuItemCard';
+import { CategoryTabs } from '../../components/CategoryTabs';
+import { MenuItemCard } from '../../components/MenuItemCard';
 
 const ACCENT = '#FF7A00';
 
@@ -84,16 +84,10 @@ export default function MenuScreen({ navigation }: any) {
         onSelectCategory={setSelectedCategory}
       />
 
-      {/* Food List */}
+      {/* Menu Items */}
       <FlatList
         data={getMenuItems()}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.menuList}
-        refreshing={loading}
-        onRefresh={() => refetch()}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No items found in this category.</Text>
-        }
+        keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => (
           <MenuItemCard item={item} onAddToCart={handleAddToCart} />
         )}
@@ -105,7 +99,7 @@ export default function MenuScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#fafafa',
   },
   loadingContainer: {
     flex: 1,
@@ -152,10 +146,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 12,
-  },
-  menuList: {
-    padding: 16,
-    paddingBottom: 32,
   },
   loadingText: {
     marginTop: 12,

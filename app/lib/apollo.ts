@@ -1,8 +1,13 @@
 import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
+import { Platform } from 'react-native';
 
-// Use your computer's local IP address instead of localhost
-const BACKEND_URL = 'http://localhost:8000/graphql';
+// Use different URLs based on platform
+const BACKEND_URL = Platform.select({
+  android: 'http://10.0.2.2:8000/graphql',
+  web: 'http://localhost:8000/graphql',
+  default: 'http://192.168.1.69:8000/graphql'
+});
 
 const httpLink = createHttpLink({
   uri: BACKEND_URL,
